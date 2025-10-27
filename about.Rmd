@@ -1,0 +1,137 @@
+---
+title: 
+output:
+  html_document:
+    toc: false
+    toc_depth: 3
+    number_sections: false
+    # no catalog
+    theme: cerulean
+    # full width
+    df_print: paged
+---
+
+#### Overview
+
+
+In clinical dose–response studies, researchers aim to balance efficacy and safety when selecting optimal doses for drug development. The Clinical Utility Index (CUI) provides a quantitative framework for this balance by combining multiple clinical attributes into a single, interpretable metric. It converts complex trade-offs between therapeutic benefit and potential risk into a unified measure of overall desirability, enabling transparent and evidence-based decision making. Building on this principle, Magnusdottir (2013) proposed c-optimal designs for the bivariate Emax CUI model, which minimize the asymptotic variance of the estimated optimal dose that maximizes the expected CUI. However, obtaining such designs numerically is computationally demanding due to the nonlinear and multi-parameter structure of the model. This Shiny app addresses this challenge by implementing Particle Swarm Optimization (PSO), a gradient-free metaheuristic algorithm that efficiently searches for c-optimal designs. It provides a fast, flexible, and user-friendly platform for identifying the most informative dose combinations that jointly characterize efficacy and safety, marking the first interactive tool for optimal CUI-based dose selection.
+
+
+#### Bivariate Emax Model
+
+In order to find the the most desirable dose balancing efficacy $Z_1$ and side-effect $Z_2$, we consider **Bivariate Emax model**.  Suppose doses \(x \in \chi = [x_{\min}, x_{\max}]\), then responses \((Z_1,Z_2)\) are defined by  
+\[
+Z_1 \;=\; \frac{E_{\max}\,x}{x + ED_{50}} + \varepsilon_1,
+\qquad
+Z_2 \;=\; \frac{S_{\max}\,x}{x + SD_{50}} + \varepsilon_2,
+\qquad
+(\varepsilon_1,\varepsilon_2) \sim N_2\!\big(0,\Sigma\big),
+\qquad
+\Sigma = \begin{pmatrix}\sigma_1^2 & \rho\sigma_1\sigma_2\\ \rho\sigma_1\sigma_2 & \sigma_2^2\end{pmatrix}
+.
+\]
+Here \(E_{\max}\) and \(S_{\max}\) denote maximal efficacy and side-effect, and \(ED_{50},SD_{50}>0\) are half-maximal doses. 
+A linear **Clinical Utility Index** combines efficacy and safety on a common utility scale: $\mathrm{CUI}(x) \;=\; k_1 Z_1 \;-\; k_2 Z_2,$
+so higher \(Z_2\) (worse safety) is penalized by the weight \(k_2>0\). Hence, the **most desirable (population) dose** is $g(\theta) \;:=\; \arg\max_{x>0}\; \mathbb E[\mathrm{CUI}(x)].$
+Under the bivariate Emax model, the maximizer exists in closed form, yielding a smooth function \(g(\theta)\) of the parameters \(\theta=(ED_{50},E_{\max},SD_{50},S_{\max})\) and the weights \(k=(k_1,k_2)\):
+$$
+g(\theta)\;=\; \frac{\sqrt{k_1ED_{50}E_{max}k_{2}SD_{50}S_{max}}(ED_{50}-SD_{50})-ED_{50}SD_{50}(k_1E_{max}-k_2S_{max})}{k_1ED_{50}E_{max}-k_2SD_{50}S_{max}}.
+$$
+
+
+
+#### c-Optimality
+
+Let \(M(\xi)\) denote the Fisher information under design \(\xi\). For any “one-point design” \(\xi_x\), which allocates all observations to a single dose \(x\), the one-point information is
+$M(\xi_x)\;=\; J(x)^\top\;\Sigma^{-1}\;J(x),$
+where \(J(x)\) is the \(2\times 4\) Jacobian of \(\big(\mathbb E[Z_1(x)],\mathbb E[Z_2(x)]\big)\) with respect to \(\theta\). Hence, 
+$$
+M(\xi_x)
+= \frac{1}{1-\rho^2}
+\begin{pmatrix}
+\displaystyle \frac{1}{\sigma_1^{2}} \frac{E_{\max}^{2} x^{2}}{(x+ED_{50})^{4}}
+&
+\displaystyle \frac{1}{\sigma_1^{2}} \frac{-E_{\max} x^{2}}{(x+ED_{50})^{3}}
+&
+\displaystyle \frac{\rho}{\sigma_1\sigma_2} \frac{-E_{\max} S_{\max} x^{2}}{(x+ED_{50})^{2}(x+SD_{50})^{2}}
+&
+\displaystyle \frac{\rho}{\sigma_1\sigma_2} \frac{E_{\max} x^{2}}{(x+ED_{50})^{2}(x+SD_{50})}
+\\[8pt]
+\ast
+&
+\displaystyle \frac{1}{\sigma_1^{2}} \frac{x^{2}}{(x+ED_{50})^{2}}
+&
+\displaystyle \frac{\rho}{\sigma_1\sigma_2} \frac{S_{\max} x^{2}}{(x+ED_{50})(x+SD_{50})^{2}}
+&
+\displaystyle \frac{\rho}{\sigma_1\sigma_2} \frac{-x^{2}}{(x+ED_{50})(x+SD_{50})}
+\\[8pt]
+\ast & \ast
+&
+\displaystyle \frac{1}{\sigma_2^{2}} \frac{S_{\max}^{2} x^{2}}{(x+SD_{50})^{4}}
+&
+\displaystyle \frac{1}{\sigma_2^{2}} \frac{-S_{\max} x^{2}}{(x+SD_{50})^{3}}
+\\[8pt]
+\ast & \ast & \ast
+&
+\displaystyle \frac{1}{\sigma_2^{2}} \frac{x^{2}}{(x+SD_{50})^{2}}
+\end{pmatrix}.
+$$
+For a general design \(\xi = \{x_1,\ldots,x_n; w_1,\ldots,w_n\}\) on \(\chi\)  with  \(w_i\ge 0\) with \(\sum_i w_i=1\), information mixes linearly: $M(\xi)\;=\;\sum_{i=1}^{n} w_i\,M(\xi_{x_i}).$
+
+The c-optimality criterion for estimating the scalar functional \(g(\theta)\) is $\Psi(\xi)\;=\; \nabla g(\theta)^\top\, M(\xi)^{-1}\, \nabla g(\theta),$
+i.e., the asymptotic variance of the plug-in estimator \(g(\hat\theta)\). The **c-optimal design** is the design that minimizes \(\Psi(\xi)\) given nominal parameter values \(\theta\) and \(\Omega=(\sigma_1,\sigma_2,\rho)\). In our app, we use PSO to find global c-optimal designs.
+
+------
+
+#### Input instructions
+
+##### **\(x_{\min}, x_{\max}\)**  
+*Dose range.* Choose \([x_{\min}, x_{\max}]\) to reflect the practical dosing limits for the drug, informed by preclinical studies, pharmacokinetic/pharmacodynamic modeling, and clinical considerations. The optimal design will be searched within this interval. 
+
+
+##### **\(n\)**
+*Design points.* Specify the number of design points $n$ to be included in the optimal design. A larger number of points allows for more flexibility in capturing the dose–response relationship but increases computational complexity. Common choices range from 2 to 6 points, balancing informativeness.
+
+
+##### **\(\frac{S_{max}}{E_{max}}, \quad \frac{SD_{50}}{ED_{50}}, \quad \frac{\sigma_2^2}{\sigma_1^2}, \quad \frac{k_2}{k_1}, \quad  \rho\)**
+*Ratios and correlation parameters.* According to Theorem 2 in [1], these ratios determine the invariance properties of locally c-optimal designs in the bivariate Emax model. Here, $S_{max}$ and $E_{max}$ are the maximum safety and efficacy effects; $SD_{50}$ and $ED_{50}$ are the doses producing 50% of the maximum safety and efficacy effects; $\sigma_2^2$ and $\sigma_1^2$ are the response variances for efficacy ($Z_1$) and safety ($Z_2$); $k_2$ and $k_1$ are the Hill parameters for safety and efficacy from clinical utility index, $\mathrm{CUI}(x) \;=\; k_1 Z_1 \;-\; k_2 Z_2$; and $\rho \in [-1, 1]$ is the correlation between $Z_1$ and $Z_2$. Each ratio can be guided by prior knowledge, historical data, competitive drugs, or expert opinion relevant to the specific drug and therapeutic area under study. The correlation $\rho$ can be estimated from pilot studies or similar compounds. The Hill parameters $k_1$ and $k_2$ reflect the relative importance of efficacy versus safety in the clinical utility index, which can be elicited from clinical experts or stakeholders and be adjusted based on trial objectives.
+
+
+
+##### **\(\text{PSO swarm size},\ \text{PSO iterations}\)**
+The app identifies the c-optimal design $\xi = \{x_i, w_i\}_{i=1}^n$ that minimizes the asymptotic variance $\Psi(\xi)$ using particle swarm optimization for global search. PSO is a population-based stochastic algorithm that searches for optimal designs by evolving a swarm of particles, each representing a candidate solution. At every iteration, particles adjust their positions based on both their own best-known solutions and the global best found by the swarm, balancing exploration of the design space and exploitation of promising regions. This collective behavior enables PSO to efficiently approach global or near-global optima, even for complex, nonconvex objectives such as $\Psi(\xi)$. Users can control the swarm size and number of iterations to trade off between computational cost and accuracy. Larger values generally enhance global search capability and convergence reliability but require more computation time.
+
+##### **\(\text{L-BFGS-B}\)**
+Limited-memory Broyden-Fletcher-Goldfarb-Shanno (L-BFGS-B) is a gradient-based local optimizer that refines the PSO result by using curvature information to reach the nearest stationary point within the allowed dose and weight bounds. It is recommended when user want higher numerical precision or reproducibility, especially with a moderate number of design points (e.g., n ≤ 6), since it quickly fine-tunes the PSO solution and ensures the sensitivity function $\phi(x\mid\xi)$ touches zero at support points, confirming local optimality for publication-quality results.
+
+-----
+
+
+
+#### Output
+
+##### **\(\text{Criterion value}\)** 
+**\(\Psi(\xi)\)**. The value $\Psi(\xi) = \nabla g(\theta)^T M(\xi)^{-1} \nabla g(\theta)$ represents the c-optimality criterion, the asymptotic variance of the estimator for the target function $g(\theta)$. Smaller values of $\Psi(\xi)$ correspond to more efficient designs that yield higher precision for estimating the most desirable dose. 
+
+**The GET max violation** measures the largest positive deviation of the sensitivity function \(\phi(x\mid\xi)\) from zero. values near zero (e.g., below 1e-6) confirm that the design satisfies the General Equivalence Theorem and is therefore locally c-optimal.
+
+**The runtime** indicates the total elapsed time for the optimization process, including both PSO and L-BFGS-B (if selected). 
+
+##### **\(\text{GET plot}\)** 
+This plot shows the General Equivalence Theorem sensitivity \(\phi(x\mid\xi)\) over the user-defined dose range $[x_{min}, x_{max}]$. A well-behaved, locally c-optimal design has \(\phi(x\mid\xi) \leq 0\) for all \(x\) and \(\phi(x_i\mid\xi) = 0\) exactly at chosen design dose \(x_i\). Red dotted lines mark design doses whose weights exceed 0.01; other support points (if any) appear as grey lines in the code variant that distinguishes them. 
+
+##### **\(\text{Design table}\)** 
+This table lists the optimized dose levels \(\{x_i\}\), their corresponding weights \(\{w_i\}\) (which sum to 1), and the evaluated sensitivity values \(\phi(x_i\mid\xi)\)at each support point. Weights smaller than 0.01 are omitted from the GET plot but are shown here for completeness. 
+
+
+
+------
+
+
+#### Practical Notes
+
+- Users should examine how solutions vary across plausible parameter ranges informed by preclinical or prior data to assess robustness. Larger correlation $\rho$ or variance ratio $\frac{\sigma_2^2}{\sigma_1^2}$ typically increases the curvature of the sensitivity surface, often requiring more support points to achieve local c-optimality.   
+
+- In GET plot, if you see positive excursions above zero, the current design is not locally c-optimal under the specified inputs. Try increasing the number of design points $n$, enabling or tightening the local polish (L-BFGS-B), increasing PSO iterations or swarm size, widening or revisiting the dose bounds, or adjusting the model ratios and $\rho$ to better reflect your prior knowledge.
+
+- In design table, some weights may be exactly or near zero, indicating that the locally c-optimal design effectively relies on fewer active support points than the specified number $n$.

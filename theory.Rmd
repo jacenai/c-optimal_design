@@ -1,0 +1,114 @@
+---
+title: 
+output:
+  html_document:
+    toc: false
+    toc_depth: 3
+    number_sections: false
+    # no catalog
+    theme: cerulean
+    df_print: paged
+---
+
+
+
+
+```{=html}
+
+<style>
+.theorem-box{
+  border:1px solid #b3d9ff;        
+  border-left:4px solid #3399ff;    
+  border-radius:6px;
+  padding:12px 16px;
+  background:#f0f8ff;              
+  margin:1.2rem 0;
+}
+.theorem-title{
+  font-weight:700;
+  margin:0 0 .5rem 0;
+}
+.theorem-body ol{ margin-left:1.1rem; }
+.theorem-body ol[type="i"]{ margin-top:.25rem; }
+</style>
+
+<div class="theorem-box">
+  <div class="theorem-body">Theorem 2 in [1]</div>  
+  <div class="theorem-title">Local c-optimality invariances for the bivariate Emax model</div>
+  <div class="theorem-body">
+    Assume that \(\xi=\{x_1,\ldots,x_n;\, w_1,\ldots,w_n\}\) is locally \(c\)-optimal for the
+    bivariate Emax model with parameters
+    \[
+    \theta=(ED_{50},\,E_{\max},\,SD_{50},\,S_{\max}),\quad
+    k=(k_1,k_2),\quad
+    \Omega=(\sigma_1,\sigma_2,\rho),
+    \]
+    that is, \(\xi\) minimizes \(\Psi=\nabla g^\top M^{-1}\nabla g\).
+    If \(a,b,c,d\in\mathbb{R}\setminus\{0\}\), then:
+    <ol>
+      <li>\(\xi\) is locally \(c\)-optimal for the <em>same model</em> but with one or more of the following parameter changes:
+        <ol type="i">
+          <li>\(k=(a k_1,\, a k_2)\),</li>
+          <li>\(\Omega=(b\sigma_1,\, b\sigma_2,\, \rho)\),</li>
+          <li>\(\theta=(ED_{50},\, cE_{\max},\, SD_{50},\, cS_{\max})\).</li>
+        </ol>
+      </li>
+      <li>\(\xi^{\ast}=\{\, d x_1,\ldots, d x_n;\, w_1,\ldots,w_n \,\}\) is locally \(c\)-optimal for the same model but with
+        <ol type="i" start="4">
+          <li>\(\theta=(d\,ED_{50},\, E_{\max},\, d\,SD_{50},\, S_{\max})\).</li>
+        </ol>
+      </li>
+    </ol>
+  </div>
+</div>
+
+
+```
+
+
+The theorem above implies that the model is invariant to scaling of (i) the efficacy weight $k_1$, (ii) the error standard deviation $\sigma_1$, (iii) the maximum effect $E_{max}$, and (iv) the half-maximal effective dose $ED_{50}$. Specifically, without loss of generality, we can set $E_{max}=1$, $\sigma_1=1$, $k_1=1$, and $ED_{50}=1$; thus, the model depends only on the following 5 parameters: $\frac{S_{max}}{E_{max}}$, $\frac{k_2}{k_1}$, $\frac{SD_{50}}{ED_{50}}$, $\frac{\sigma^2_2}{\sigma^2_1}$, and $\rho$, reducing the search space.
+
+Let \(\phi(x\mid \xi)\) denote the sensitivity function $\phi(x\mid\xi)\;=\;\nabla g^\top M(\xi)^{-1}\, M(\xi_x)\, M(\xi)^{-1}\nabla g \;-\; \nabla g^\top M(\xi)^{-1}\nabla g.$
+The **General Equivalence Theorem** [1] states that a design \(\xi\) is locally c-optimal iff
+\[
+\phi(x\mid\xi)\;\le\; 0 \quad \text{for all } x\in\chi,
+\quad\text{with equality at each support point } x\in\{x_1,\ldots,x_n\}.
+\]
+Our app computes and plots \(\phi(x\mid\xi)\) over a fine grid as a diagnostic: the curve should lie at or below zero, touching zero at the selected design doses.
+
+
+
+
+
+#### Particle Swarm Optimization
+
+PSO is a population-based stochastic optimization algorithm inspired by the collective behavior of birds and fish [2]. A swarm of particles, in which each particle represents a candidate solution, navigates the search space by updating its position and velocity according to its own best experience and that of the swarm. This dynamic balances exploration and exploitation, enabling PSO to efficiently locate global optima in complex, nonlinear, or multi-modal functions where gradient-based methods often fail [3]. Specifically, each particle $i = 1, \ldots, s$ represents a potential solution with a position vector $\boldsymbol{x}_i^{\,t} = (x_{i1}^{\,t}, x_{i2}^{\,t}, \ldots, x_{id}^{\,t})$ and a velocity vector $\boldsymbol{v}_i^{\,t} = (v_{i1}^{\,t}, v_{i2}^{\,t}, \ldots, v_{id}^{\,t})$ at iteration \(t\), where \(d\) is the dimensionality of the search space or the number of decision variables (in our app, $d = 2n - 1$ for $n$ design dose ands and $n-1$ weights). The particle updates according to
+$$
+\boldsymbol{v}_i^{\,t+1}
+= \tau_i\,\boldsymbol{v}_i^{\,t}
++ \gamma_1\,\boldsymbol{\beta}_1 \otimes (\boldsymbol{p}_i - \boldsymbol{x}_i^{\,t})
++ \gamma_2\,\boldsymbol{\beta}_2 \otimes (\boldsymbol{p}_g - \boldsymbol{x}_i^{\,t}),
+\qquad
+\boldsymbol{x}_i^{\,t+1} = \boldsymbol{x}_i^{\,t} + \boldsymbol{v}_i^{\,t+1}.
+$$
+Here, \(\tau_i \in (0,1)\) is the inertia weight, controlling how strongly the particle maintains its previous velocity. \(\gamma_1, \gamma_2 > 0\) are the cognitive and social parameters, respectively, determining the attraction toward the particle’s own best-known position \(\boldsymbol{p}_i\) and the swarm’s best-known position \(\boldsymbol{p}_g\). \(\boldsymbol{\beta}_1, \boldsymbol{\beta}_2 \sim U(0,1)^d\) are random vectors introducing stochasticity, and \(\otimes\) denotes element-wise (Hadamard) multiplication.
+
+In this app, each particle encodes a candidate design $\xi = \{ x_1, \ldots, x_n; w_1, \ldots, w_n \}$, where doses $x_j \in [x_{min}, x_{max}]$ and weights $w_j \geq 0$ with $\sum_{j=1}^n w_j = 1$. PSO minimizes the c-optimality criterion, \(\Psi(\xi) = \nabla g^\top M(\xi)^{-1} \nabla g\), by evolving particles over time to locate the design with the lowest asymptotic variance. 
+
+Default PSO settings. Unless changed in the UI, the app runs PSO with swarm size $s = 40$ and maximum iterations 200; initialization uses i.i.d. $x_j \sim U(x_{min}, x_{max})$ and $w_j \sim U(0,1)$ from a $Dirichlet(1,\ldots,1)$, with the last weight set to $1 - \sum_{j=1}^{n-1} w_j$. The $\tau_i$ (inertia), $\gamma_1$ (cognitive), and $\gamma_2$ (social) parameters used package defaults in funtion `pso::psoptim()`.
+
+Once PSO converges, the best design $\xi^{\ast}$ can optionally be refined using L-BFGS-B, a gradient-based local optimizer that fine-tunes doses and weights within their specified bounds.
+
+
+
+
+
+## References
+
+[1] Magnusdottir, B. T. (2013). c-Optimal designs for the bivariate Emax model. In D. Ucinski, A. C. Atkinson, & M. Patan (Eds.), mODa 10 – Advances in model-oriented design and analysis (pp. 153–161). Springer International Publishing.
+
+[2] Kennedy, J., & Eberhart, R. (1995). Particle swarm optimization.
+Proceedings of IEEE International Conference on Neural Networks (ICNN’95), 4, 1942–1948.
+
+[3] Eberhart, R. C., & Kennedy, J. (1995). A new optimizer using particle swarm theory.
+Proceedings of the Sixth International Symposium on Micro Machine and Human Science, 39–43.
